@@ -59,6 +59,50 @@ app.get("/genres", function (req, res) {
    a list of the results you obtain. Only include the properties 
    mentioned in the README when sending back the results to the client */
 
+app.get("/search", function (req, res) {
+  if (!req.query.query) {
+    res.sendStatus(400);
+    return;
+  }
+
+  const http = require("http");
+  const search = req.query.query
+  const APIrequest = `http://www.omdbapi.com/?apikey=f41b90d6&s=${search}`
+
+  http.get(APIrequest, (response) => {
+    let data = "";
+    response.on("data", (chunk) => {
+      data += chunk
+    });
+    response.on("end", () => {
+      dataParse = JSON.parse(data)
+      let filteredData = []
+
+      dataParse.Search.forEach(movie => {
+        let ok = {}
+        ok.Title = movie.Title;
+        let yearNumber = Number(movie.Year)
+        if (yearNumber.toString().length >= 4) {
+          ok.Year = yearNumber;
+        }
+        else {
+          ok.Year = null
+        }
+        ok.imdbID = movie.imdbID;
+        filteredData.push(ok)
+      });
+
+      res.send(filteredData)
+    })
+      .on("error", (error) => {
+        console.log(error)
+      })
+  });
+})
+
+
+
+
 /* Task 2.2 Add a POST /movies endpoint that receives an array of imdbIDs that the
    user selected to be added to the movie collection. Search them on omdbapi.com,
    convert the data to the format we use since exercise 1 and add the data to the

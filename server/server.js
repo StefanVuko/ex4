@@ -3,6 +3,7 @@ const path = require("path");
 const http = require("http");
 const bodyParser = require("body-parser");
 const movieModel = require("./movie-model.js");
+const axios = require('axios');
 
 const app = express();
 
@@ -112,59 +113,56 @@ app.get("/search", function (req, res) {
    movie collection. */
 
 app.post("/movies", function (req, res) {
-  let data = req.body
+  const moviePromises = req.body.map((movie) => getApiData(movie))
+  Promise.all(moviePromises).then((movieObjects) => {
+    movieObjects.forEach(element => {
+      movieModel[element.imdbID] = element
+    })
+    res.sendStatus(200)
+  })
+    .catch((error) => {
+      console.log(error)
+      res.sendStatus(500)
+    })
+});
 
-  data.forEach(movie => {
-    const http = require("http");
-    const APIrequest = `http://www.omdbapi.com/?apikey=f41b90d6&i=${movie}`
 
-    http.get(APIrequest, (response) => {
-      let apiData = "";
-      let movieObject = {}
-      response.on("data", (chunk) => {
-        apiData += chunk
-      });
-      response.on("end", () => {
-        apiData = JSON.parse(apiData)
+const getApiData = (movieID) => {
+  return new Promise((resolve, reject) => {
+    axios.get(`http://www.omdbapi.com/?apikey=f41b90d6&i=${movieID}`)
+      .then(function (response) {
+        let movieObject = {}
+        const apiData = response.data
         movieObject.Poster = apiData.Poster
-        movieObject.Released = apiData.Released
+        let date = new Date(apiData.Released)
+
+        movieObject.Released = date.toISOString().substring(0, 10);
         movieObject.imdbID = apiData.imdbID
-        apiData.Runtime === "N/A" ? movieObject.Runtime = null : apiData.Runtime
+        apiData.Runtime === "N/A" ? movieObject.Runtime = null : movieObject.Runtime = Number(apiData.Runtime.replace(/[^0-9]/g, ""));
+
+        movieObject.Plot = apiData.Plot
+        movieObject.Title = apiData.Title
         let genres = apiData.Genre.split(",")
-        if (genres.length == 1) {
-          movieObject.Genre = apiData.Genre
-        }
-        else {
-          movieObject.Genres = genres
-        }
+
+        movieObject.Genres = genres
         let directors = apiData.Genre.split(",")
-        if (directors.length == 1) {
-          movieObject.Director = apiData.Genre
-        }
-        else {
-          movieObject.Directors = directors
-        }
+        movieObject.Directors = directors
         let writers = apiData.Genre.split(",")
-        if (writers.length == 1) {
-          movieObject.Writer = apiData.Writer
-        }
-        else {
-          movieObject.Writers = writers
-        }
+        movieObject.Writers = writers
         movieObject.Actors = apiData.Actors.split(",")
-        apiData.Metascore === "N/A" ? movieObject.Metascore = null : apiData.Metascore
-        movieObject.imdbRating = apiData.imdbRating
 
-        movieModel[movie] = movieObject
+        apiData.Metascore === "N/A" ? movieObject.Metascore = null : movieObject.Metascore = Number(apiData.Metascore)
+        movieObject.imdbRating = Number(apiData.imdbRating)
+
+        console.log(movieObject)
+        resolve(movieObject)
       })
-        .on("error", (error) => {
-          console.log(error)
-        })
-    });
-  });
-
-  res.sendStatus(200)
-})
+      .catch(function (error) {
+        // handle error
+        reject(error)
+      });
+  })
+}
 
 
 app.delete("/movies/:imdbID", function (req, res) {

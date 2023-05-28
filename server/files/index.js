@@ -1,6 +1,19 @@
 import { ButtonBuilder, ElementBuilder, MovieBuilder } from "./builders.js";
 
 function deleteMovie(imdbID) {
+  const xhr = new XMLHttpRequest();
+  xhr.open("DELETE", "/movies/" + imdbID);
+
+  xhr.onload = function () {
+    if (xhr.status === 200) {
+      const article = document.getElementById(imdbID)
+      article.remove()
+    }
+  }
+
+  xhr.send();
+
+
   /* Task 3.1. Add an XMLHttpRequest that send a DELTETE request to the /movies/:imdbID endpoint. 
      Task 3.3. Upon successful deletion, remove the article element corresponding to the deleted 
                movie from the DOM. */
@@ -25,7 +38,7 @@ function loadMovies(genre) {
   }
 
   const url = new URL("/movies", location.href)
-  
+
   if (genre) {
     url.searchParams.set("genre", genre)
   }

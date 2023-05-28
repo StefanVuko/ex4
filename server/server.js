@@ -78,19 +78,22 @@ app.get("/search", function (req, res) {
       dataParse = JSON.parse(data)
       let filteredData = []
 
-      dataParse.Search.forEach(movie => {
-        let ok = {}
-        ok.Title = movie.Title;
-        let yearNumber = Number(movie.Year)
-        if (yearNumber.toString().length >= 4) {
-          ok.Year = yearNumber;
-        }
-        else {
-          ok.Year = null
-        }
-        ok.imdbID = movie.imdbID;
-        filteredData.push(ok)
-      });
+      if (dataParse.Response == "True") {
+
+        dataParse.Search.forEach(movie => {
+          let ok = {}
+          ok.Title = movie.Title;
+          let yearNumber = Number(movie.Year)
+          if (yearNumber.toString().length >= 4) {
+            ok.Year = yearNumber;
+          }
+          else {
+            ok.Year = null
+          }
+          ok.imdbID = movie.imdbID;
+          filteredData.push(ok)
+        });
+      }
 
       res.send(filteredData)
     })
@@ -108,6 +111,67 @@ app.get("/search", function (req, res) {
    convert the data to the format we use since exercise 1 and add the data to the
    movie collection. */
 
+app.post("/movies", function (req, res) {
+  let data = req.body
+
+  data.forEach(movie => {
+    const http = require("http");
+    const APIrequest = `http://www.omdbapi.com/?apikey=f41b90d6&i=${movie}`
+
+    http.get(APIrequest, (response) => {
+      let apiData = "";
+      let movieObject = {}
+      response.on("data", (chunk) => {
+        apiData += chunk
+      });
+      response.on("end", () => {
+        apiData = JSON.parse(apiData)
+        movieObject.Poster = apiData.Poster
+        movieObject.Released = apiData.Released
+        movieObject.imdbID = apiData.imdbID
+        apiData.Runtime === "N/A" ? movieObject.Runtime = null : apiData.Runtime
+        let genres = apiData.Genre.split(",")
+        if (genres.length == 1) {
+          movieObject.Genre = apiData.Genre
+        }
+        else {
+          movieObject.Genres = genres
+        }
+        let directors = apiData.Genre.split(",")
+        if (directors.length == 1) {
+          movieObject.Director = apiData.Genre
+        }
+        else {
+          movieObject.Directors = directors
+        }
+        let writers = apiData.Genre.split(",")
+        if (writers.length == 1) {
+          movieObject.Writer = apiData.Writer
+        }
+        else {
+          movieObject.Writers = writers
+        }
+        movieObject.Actors = apiData.Actors.split(",")
+        apiData.Metascore === "N/A" ? movieObject.Metascore = null : apiData.Metascore
+        movieObject.imdbRating = apiData.imdbRating
+
+        movieModel[movie] = movieObject
+      })
+        .on("error", (error) => {
+          console.log(error)
+        })
+    });
+  });
+
+  res.sendStatus(200)
+})
+
+
+app.delete("/movies/:imdbID", function (req, res) {
+  const id = req.params.imdbID;
+  delete movieModel[id]
+  res.sendStatus(200)
+})
 /* Task 3.2. Add the DELETE /movies/:imdbID endpoint which removes the movie
    with the given imdbID from the collection. */
 
